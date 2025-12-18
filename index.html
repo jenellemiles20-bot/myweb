@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的赛博空间 | Cyber Space</title>
+    <link rel="stylesheet" href="https://unpkg.com/@waline/client@v2/dist/waline.css"/>
+    
+    <style>
+        /* --- 全局 CSS 变量 (配色方案) --- */
+        :root {
+            --primary-color: #0f0;       /* 黑客绿 */
+            --bg-color: #0d0d0d;         /* 深黑背景 */
+            --card-bg: #1a1a1a;          /* 卡片背景 */
+            
+            /* Waline 留言板的颜色覆盖 */
+            --waline-theme-color: #0f0 !important;
+            --waline-active-color: #00cc00 !important;
+            --waline-bgcolor: #1a1a1a !important;
+            --waline-bgcolor-light: #222 !important;
+            --waline-border-color: #333 !important;
+            --waline-color: #e0e0e0 !important;
+            --waline-info-color: #666 !important;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: var(--bg-color);
+            color: #e0e0e0;
+            font-family: 'Consolas', 'Monaco', monospace; /* 编程字体 */
+            overflow-x: hidden; /* 防止左右晃动 */
+        }
+
+        /* --- 1. 开场代码雨 Canvas --- */
+        canvas#matrix {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999; /* 保证在最顶层 */
+            width: 100%;
+            height: 100%;
+            background: black;
+            transition: opacity 2s ease-in-out; /* 淡出动画 2秒 */
+        }
+        
+        /* 隐藏状态 */
+        canvas.hidden {
+            opacity: 0;
+            pointer-events: none; /* 让鼠标能穿透过去点击网页 */
+        }
+
+        /* --- 2. 网页主容器 --- */
+        #main-content {
+            opacity: 0; /* 初始完全透明 */
+            transition: opacity 3s ease; /* 慢慢显示出来 */
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+        
+        #main-content.visible {
+            opacity: 1;
+        }
+
+        /* 标题样式 */
+        h2 {
+            text-align: center;
+            color: var(--primary-color);
+            margin: 60px 0 30px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        /* --- 3. 照片墙 (Grid 布局) --- */
+        .photo-wall {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+        }
+
+        .photo-item {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 4px;
+            overflow: hidden;
+            aspect-ratio: 4/3; /* 固定长宽比 */
+            transition: all 0.4s ease;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.7; /* 默认稍微暗一点 */
+            transition: transform 0.5s, opacity 0.5s;
+        }
+
+        /* 鼠标悬停特效 */
+        .photo-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            transform: translateY(-5px);
+        }
+        .photo-item:hover img {
+            opacity: 1;
+            transform: scale(1.1); /* 图片放大 */
+        }
+
+        /* --- 4. 留言板区域 --- */
+        #message-board {
+            margin-top: 50px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+        
+        /* 调整 Waline 输入框样式 */
+        .wl-editor {
+            background-color: #0d0d0d !important;
+            color: #0f0 !important;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="matrix"></canvas>
+
+    <div id="main-content">
+        
+        <h2>Visual Records</h2>
+        <div class="photo-wall">
+            <div class="photo-item">
+                <img src="https://picsum.photos/600/400?random=1" alt="Photo 1">
+            </div>
+            <div class="photo-item">
+                <img src="https://picsum.photos/600/400?random=2" alt="Photo 2">
+            </div>
+            <div class="photo-item">
+                <img src="https://picsum.photos/600/400?random=3" alt="Photo 3">
+            </div>
+            <div class="photo-item">
+                <img src="https://picsum.photos/600/400?random=4" alt="Photo 4">
+            </div>
+        </div>
+
+        <h2>Encrypted Comms</h2>
+        <div id="message-board">
+            <div id="waline"></div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { init } from 'https://unpkg.com/@waline/client@v2/dist/waline.mjs';
+
+        // --- 1. 启动留言板 ---
+        init({
+            el: '#waline',
+            // 👇👇👇【重要】请把下面这行引号里的地址，换成你 Vercel 部署好的地址！
+            serverURL: 'https://你的域名.vercel.app', 
+            dark: true,       // 强制深色模式
+            emoji: false,     // 简约风格，关掉表情包（可选）
+            placeholder: '输入信号... (System Ready)',
+        });
+
+        // --- 2. 启动代码雨动画 ---
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+
+        // 设置全屏
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const chars = '0123456789ABCDEF-SYSTEM-CONNECTING';
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = [];
+        for (let i = 0; i < columns; i++) drops[i] = 1;
+
+        function draw() {
+            // 拖尾效果
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#0F0';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        // 30毫秒刷新一次
+        const interval = setInterval(draw, 30);
+
+        // --- 3. 5秒后自动切换 ---
+        setTimeout(() => {
+            // 1. 给 Canvas 添加 hidden 类（触发淡出）
+            document.getElementById('matrix').classList.add('hidden');
+            // 2. 显示主内容
+            document.getElementById('main-content').classList.add('visible');
+            
+            // 3. 动画结束后停止绘图，节省电脑资源
+            setTimeout(() => clearInterval(interval), 2000);
+        }, 5000); // 👈 这里的 5000 代表 5秒
+
+        // 处理窗口大小改变
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+    </script>
+</body>
+</html>
