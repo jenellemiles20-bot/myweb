@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>想和大家友好聊天的空间qwq | Cyber Space</title>
+    <title>peace and love | Cyber Space</title>
     <link rel="stylesheet" href="https://unpkg.com/@waline/client@v2/dist/waline.css"/>
     
     <style>
@@ -152,11 +152,12 @@
             <div class="photo-item">
                 <img src="images/p5.jpg" alt="Photo 5">
             </div>
-            why<div>可恶 nalicuole?
+            按照时间顺序排列的~<div>
             </div>
         </div>
 
-        <h2>Encrypted Comms</h2>
+        <h2>这里是留言的地方哟~</h2>
+        <div>可以不用登录，输入昵称知道你是谁就可以了~</div>
         <div id="message-board">
             <div id="waline"></div>
         </div>
@@ -169,10 +170,10 @@
         // --- 1. 启动留言板 ---
         init({
             el: '#waline',
-            // 👇👇👇【重要】请把下面这行引号里的地址，换成你 Vercel 部署好的地址！
-            serverURL: 'https://mywebback.vercel.app', 
+            
+            serverURL: '/api', 
             dark: true,       // 强制深色模式
-            emoji: false,     // 简约风格，关掉表情包（可选）
+            emoji: true,     // 简约风格，关掉表情包（可选）
             placeholder: '输入信号... (System Ready)',
         });
 
@@ -221,7 +222,7 @@
             
             // 3. 动画结束后停止绘图，节省电脑资源
             setTimeout(() => clearInterval(interval), 2000);
-        }, 5000); // 👈 这里的 5000 代表 5秒
+        }, 5000); //  这里的 5000 代表 5秒
 
         // 处理窗口大小改变
         window.onresize = () => {
@@ -232,6 +233,7 @@
 </body>
 
 </html>
+
 
 
 
