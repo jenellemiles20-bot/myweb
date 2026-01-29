@@ -7,6 +7,7 @@ const storyData = {
 
     
         "start": {
+            setChance: 0,
             text: "开始吗~",
             options: [
                 { text: "是的，开始吧！", next: "00" },

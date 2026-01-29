@@ -35,6 +35,10 @@ function showNode(nodeId) {
         return;
     }
 
+    if (typeof node.setChance !== 'undefined') {
+        chances = node.setChance;
+    }
+
     // 获取界面元素
     const textElement = document.getElementById('story-text');
     const optionsBox = document.getElementById('options-box');
