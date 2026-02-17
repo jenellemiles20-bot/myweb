@@ -38,7 +38,11 @@ function showNode(nodeId) {
     if (typeof node.setChance !== 'undefined') {
         chances = node.setChance;
     }
-
+    if (node.bg) {
+        // 修改 CSS 变量 --bg-image
+        // 这样背景图就会平滑地切换了
+        document.documentElement.style.setProperty('--bg-image', `url('${node.bg}')`);
+    }
     // 获取界面元素
     const textElement = document.getElementById('story-text');
     const optionsBox = document.getElementById('options-box');

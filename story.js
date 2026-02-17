@@ -7,6 +7,7 @@ const storyData = {
 
     
         "start": {
+            bg: "img/rain.png",
             setChance: 0,
             text: "开始吗~",
             options: [
@@ -21,6 +22,7 @@ const storyData = {
         ],
         },
         "0-0": {
+            bg: "img/yizhangguiyidetupian.jpg",
             text:"你醒来了,发现自己在一个陌生的房间里。呀,原来是穿越了,btw还附赠了一个？？？？模拟器（也许它在后面能帮到你）。狂风暴雨之中，似乎有什么在外面敲门...",
             options: [
                 { text: "A去开门", next: "1-a",change:1 },
