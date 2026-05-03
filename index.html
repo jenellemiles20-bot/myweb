@@ -134,7 +134,7 @@
     <canvas id="matrix"></canvas>
 
 
-    <div id="music-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; 
+    <div id="music-container" style="position: fixed; filter: invert(90%) hue-rotate(180deg); top: 20px; right: 20px; z-index: 9999; 
     opacity: 0; pointer-events: none; transition: opacity 2s ease; 
     box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;">
     <!-- 你的网易云 iframe 保持不变 -->
@@ -216,7 +216,7 @@ font-weight: 400;
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const chars = '0123456789ABCDEF-SYSTEM-CONNECTING-アイウエオカキクケ-?????';
+        const chars = '0123456789??????-SYSTEM-CONNECTING-アイウエオカキクケ-?????';
         const fontSize = 14;
         const columns = canvas.width / fontSize;
         const drops = [];
@@ -244,7 +244,7 @@ font-weight: 400;
         // 30毫秒刷新一次
         const interval = setInterval(draw, 30);
 
-        // --- 3. 5秒后自动切换 ---
+        // --- 3. 3秒后自动切换 ---
         setTimeout(() => {
             // 1. 给 Canvas 添加 hidden 类（触发淡出）
             document.getElementById('matrix').classList.add('hidden');
@@ -255,6 +255,12 @@ font-weight: 400;
             setTimeout(() => clearInterval(interval), 2000);
         }, 3000); //  这里的 5000 代表 5秒
 
+        setTimeout(function() {
+        const player = document.getElementById('music-container');
+        player.style.opacity = '1'; // 变清晰
+        player.style.pointerEvents = 'auto'; // 恢复可点击状态
+    }, 3000); // 6000 表示 6 秒后执行，你可以根据实际情况调整
+        
         // 处理窗口大小改变
         window.onresize = () => {
             canvas.width = window.innerWidth;
