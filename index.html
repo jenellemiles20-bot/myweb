@@ -41,7 +41,7 @@
             width: 100%;
             height: 100%;
             background: black;
-            transition: opacity 2s ease-in-out; /* 淡出动画 2秒 */
+            transition: opacity 1s ease-in-out; /* 淡出动画 2秒 */
         }
         
         /* 隐藏状态 */
@@ -133,13 +133,13 @@
 
     <canvas id="matrix"></canvas>
 
-    <!-- 右上角音乐播放器容器 -->
-<div style="position: fixed; top: 20px; right: 20px; z-index: 9999; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;">
-    <!-- 网易云代码 -->
-    <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width="330" height="86" src="//music.163.com/outchain/player?type=2&id=2658659135&auto=1&height=66"></iframe>
 
+    <div id="music-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; 
+    opacity: 0; pointer-events: none; transition: opacity 2s ease; 
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;">
+    <!-- 你的网易云 iframe 保持不变 -->
+    <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width="330" height="86" src="//music.163.com/outchain/player?type=2&id=2658659135&auto=1&height=66"></iframe>
 </div>
-    
     <div id="main-content">
         
         <h2>Visual Records</h2>
@@ -164,6 +164,7 @@
             </div>
             <div>
                 <h3 style="text-align:center;
+                    text-shadow: 0px 1px 2px rgba(0,0,0,0.05);
                     letter-spacing:1px;
                     font-family: 'Microsoft YaHei', sans-serif;
 font-size: 18px;
@@ -215,7 +216,7 @@ font-weight: 400;
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const chars = '0123456789ABCDEF-SYSTEM-CONNECTING-アイウエオカキクケ';
+        const chars = '0123456789ABCDEF-SYSTEM-CONNECTING-アイウエオカキクケ-?????';
         const fontSize = 14;
         const columns = canvas.width / fontSize;
         const drops = [];
@@ -252,7 +253,7 @@ font-weight: 400;
             
             // 3. 动画结束后停止绘图，节省电脑资源
             setTimeout(() => clearInterval(interval), 2000);
-        }, 5000); //  这里的 5000 代表 5秒
+        }, 3000); //  这里的 5000 代表 5秒
 
         // 处理窗口大小改变
         window.onresize = () => {
