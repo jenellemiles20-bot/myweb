@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>鬼点烛，人吹灯</title>
+    <link rel="icon" type="image/png" href="candle.png">
+    <style>
+        body { margin: 0; background-color: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    </style>
+</head>
+<body>
+
+<script src="https://unpkg.com/kaboom@3000.1.17/dist/kaboom.js"></script>
+
+<script>
+
+kaboom({ width: 1000, height: 800, background: [ 10, 10, 10 ] });
+
+// 【新增代码】加载你的图片素材
+loadSprite("wallImg", "wall.png");
+loadSprite("heroImg", "hero.png");
+loadSprite("bossImg", "boss.png");
+loadSprite("ghostImg", "ghost.png");
+loadSprite("candleImg", "candle.png");           // 亮着的蜡烛
+loadSprite("candleOffImg", "candle_off.png"); // 熄灭的蜡烛
+loadSprite("obstacleImg", "obstacle.png");    
+loadSprite("doorImg", "door.png");  
+
+loadSound("bgm", "bgm.mp3").catch((err) => {
+    console.error("音乐加载失败，但我们继续游戏:", err);
+});
+
+const PLAYER_SPEED = 180; 
+const BOSS_SPEED = 170; 
+const MAP_SCALE = 40;     
+
+const mapLayout = [
+    "=========================",
+    "=DB  #                  =",
+    "===  # ########### # #  =",
+    "=*   # #         # # #  =",
+    "= #### # ####### # #    =",
+    "=      # # *   # # # #  =",
+    "= #### # # ### # # # #  =",
+    "= #      # #   #   # #  =",
+    "= # # ###### # # # # *  =",
+    "= # #      # # # # #### =",
+    "= # # #### # #   #    # =",
+    "= # #    # # # # #### # =",
+    "= # ####   # # # *    # =",
+    "= #    # # # # #######  =",
+    "= #### # # # #          =",
+    "=    # # # # # #########=",
+    "= ## # # # #            =",
+    "=  # # # # # ####### ## =",
+    "=@ #       #          * =",
+    "=========================",
+];
+
+function getNextMove(startX, startY, targetX, targetY) {
+    if (startX === targetX && startY === targetY) return null;
+    let queue = [ { x: startX, y: startY, path: [] } ];
+    let visited = new Set([`${startX},${startY}`]);
+    const dirs = [ {x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0} ]; 
+    while (queue.length > 0) {
+        let curr = queue.shift();
+        if (curr.x === targetX && curr.y === targetY) return curr.path[0]; 
+        for (let d of dirs) {
+            let nx = curr.x + d.x; let ny = curr.y + d.y; let key = `${nx},${ny}`;
+            if (ny >= 0 && ny < mapLayout.length && nx >= 0 && nx < mapLayout[0].length) {
+                let tile = mapLayout[ny][nx];
+                if (tile !== '=' && tile !== '#' && tile !== 'D' && !visited.has(key)) {
+                    visited.add(key); queue.push({ x: nx, y: ny, path: [...curr.path, {x: nx, y: ny}] });
+                }
+            }
+        }
+    }
+    return null; 
+}
+
+scene("start", () => {
+    add([text("鬼点烛，人吹灯\n\n- 点击屏幕开始游戏 -", { size: 28, align: "center", width: width() - 100 }), pos(center()), anchor("center"), color(255, 200, 0)]);
+    
+
+    onMousePress(() => {
+        // 尝试播放音乐，如果还没加载好，报错也不要影响进游戏
+        try {
+            if (!music) {
+                music = play("bgm", {
+                    loop: true,
+                    volume: 0.5,
+                    paused: false // 确保直接开始
+                });
+            }
+        } catch (e) {
+            console.warn("音乐还没准备好，先无声潜行吧！");
+        }
+        
+        // 关键：无论音乐播没播成功，都必须切换场景
+        go("main");
+    });
+    
+});
+
+scene("main", () => {
+    document.querySelector("canvas").focus();
+    
+    // --- 状态变量集中管理 ---
+    const MAX_HP = 3;
+    let playerHp = MAX_HP; 
+    let candlesLeft = 5; 
+    let playerRef = null; 
+    
+    let music = null;
+
+    let bossState = "sleep"; 
+    let chaseTimer = 0;      
+    let healTimer = 0; // 回血计时器 (只声明一次)
+    let isInvincible = false;
+    let currentSpeed = PLAYER_SPEED; // 动态速度
+
+    const myMap = addLevel(mapLayout, {
+        tileWidth: MAP_SCALE, tileHeight: MAP_SCALE,
+        tiles: {
+            // 原来：() => [ rect(MAP_SCALE, MAP_SCALE), color(40, 40, 40), area(), body({ isStatic: true }), pos(), "wall" ],
+            // 改为：使用 "wallImg"
+            "=": () => [ sprite("wallImg"), area(), body({ isStatic: true }), pos(), "wall" ],
+            "D": () => [ sprite("doorImg"), area(), body({ isStatic: true }), pos(), "door" ], 
+            // 原来的主控 @ 和 Boss B 也一样改掉：
+            "@": () => [ sprite("heroImg"), area(), body(), pos(), "player" ],
+            "B": () => [ sprite("bossImg"), area(), pos(), "boss" ],
+            
+            // 其他的如果没图片，就先保留 rect 颜色块
+            "#": () => [ sprite("obstacleImg"), area(), body({ isStatic: true }), pos(),  "obstacle" ],
+            // ...
+            "*": () => [ sprite("candleImg"), area(),  pos(),  "candle" ],
+        }
+        /*tiles: {
+            "=": () => [ rect(MAP_SCALE, MAP_SCALE), color(40, 40, 40), area(), body({ isStatic: true }), pos(), "wall" ],
+            "#": () => [ rect(MAP_SCALE, MAP_SCALE), color(70, 50, 30), area(), body({ isStatic: true }), pos(), "obstacle" ],
+            "D": () => [ rect(MAP_SCALE, MAP_SCALE), color(0, 200, 255), area(), body({ isStatic: true }), pos(), "door" ], 
+            "@": () => [ rect(24, 24), color(0, 255, 0), area(), body(), pos(), "player" ],
+            "B": () => [ rect(24, 24), color(100, 0, 0), area(), pos(), "boss" ],
+            "*": () => [ rect(16, 16), color(255, 220, 0), area(), pos(), "candle" ],
+        }*/
+    });
+
+    // 幽灵生成
+    let emptySpaces = [];
+    for(let y=0; y<mapLayout.length; y++) {
+        for(let x=0; x<mapLayout[y].length; x++) {
+            if(mapLayout[y][x] === ' ') emptySpaces.push({x, y});
+        }
+    }
+    for(let i=0; i<15; i++) {
+        if(emptySpaces.length === 0) break;
+        let randIndex = Math.floor(Math.random() * emptySpaces.length);
+        let space = emptySpaces.splice(randIndex, 1)[0];
+        // 原来：add([ rect(14, 14), color(255, 255, 255), area(), pos(...), "ghost" ]);
+        // 改为：
+        add([
+            sprite("ghostImg"), // 换成贴图
+            area(), 
+            pos(space.x * MAP_SCALE + 13, space.y * MAP_SCALE + 13), 
+            "ghost"
+        ]);/*add([ rect(14, 14), color(255, 255, 255), area(), pos(space.x * MAP_SCALE + 13, space.y * MAP_SCALE + 13), "ghost" ]);*/
+    }
+
+
+
+    // --- UI 界面 ---
+    const uiText = add([text("", { size: 20 }), pos(15, 10), color(255, 255, 255), fixed(), z(100)]);
+    
+    // 【雷达监控器】让它永远显示，帮你抓 Bug！
+    const domainText = add([
+        text("雷达初始化...", { size: 22 }), 
+        pos(width() / 2, 40), anchor("center"), color(255, 255, 255), fixed(), z(100)
+    ]);
+    
+    function updateUI() {
+        if (playerHp <= 0) { go("lose"); return; }
+        let stateStr = "沉睡";
+        if (bossState === "chase") stateStr = `被追杀 (${Math.ceil(chaseTimer)}s)`;
+        if (bossState === "wander") stateStr = "游荡捕食中...";
+        uiText.text = `血量: ${playerHp}/${MAX_HP} | 剩余蜡烛: ${candlesLeft} | Boss: ${stateStr}`;
+        if (bossState === "chase") uiText.color = rgb(255, 50, 50);
+        else if (bossState === "wander") uiText.color = rgb(255, 150, 0);
+        else uiText.color = rgb(255, 255, 255);
+    }
+    updateUI();
+
+    // --- 玩家受伤逻辑 ---
+    onCollide("player", "boss", (p, b) => {
+        if (isInvincible) return; 
+        
+        playerHp--; shake(8); updateUI();
+        isInvincible = true; 
+        
+        // 【改这里】受伤时变成红色！(255, 0, 0)
+        p.use(color(255, 0, 0)); 
+        currentSpeed = PLAYER_SPEED * 1.5; 
+        
+        // 【改这里】1.5秒无敌结束后，恢复正常颜色 (255, 255, 255)
+        wait(1.5, () => { isInvincible = false; p.use(color(255, 255, 255)); });
+        wait(5, () => { currentSpeed = PLAYER_SPEED; }); 
+    });
+    
+
+    // --- 玩家移动与【雷达领域逻辑】 ---
+    onUpdate("player", (p) => {
+        playerRef = p;
+        
+        // 1. 移动控制
+        if (isKeyDown("w")) p.move(0, -currentSpeed);
+        if (isKeyDown("s")) p.move(0, currentSpeed);
+        if (isKeyDown("a")) p.move(-currentSpeed, 0);
+        if (isKeyDown("d")) p.move(currentSpeed, 0);
+
+        // 2. 核心监控：找到离主控最近的一根蜡烛
+        let minDist = 99999; 
+       
+        const candles = myMap.get("candle");
+        for (let c of candles) {
+            if (!c.pos) continue;
+            const dx = (p.pos.x + 12) - (c.pos.x + 8);
+            const dy = (p.pos.y + 12) - (c.pos.y + 8);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist) {
+                minDist = dist; // 记录最近的距离
+            }
+        }
+
+        // 判断是否在 120 像素（3个格子）以内
+        let inAura = (minDist <= 120); 
+
+        // 3. 将雷达数据实时打印在屏幕顶部
+        if (playerHp >= MAX_HP) {
+            domainText.text = `满血 | 最近蜡烛距离: ${Math.round(minDist)} 像素`;
+            domainText.color = rgb(150, 150, 150); // 灰色
+            healTimer = 0;
+        } else {
+            if (inAura) {
+                healTimer += dt();      
+                domainText.text = `【提灯领域生效中】进度: ${healTimer.toFixed(1)}s / 7.0s | 距离: ${Math.round(minDist)}`;
+                domainText.color = rgb(0, 255, 150); // 绿色
+                
+                if (healTimer >= 7) {
+                    playerHp++;
+                    healTimer = 0;      
+                    updateUI();
+                    p.use(color(0, 255, 150)); // 这一行保留，回血瞬间闪一下绿光挺好看的
+                    
+                    // 【改这里】0.5秒后，恢复正常颜色 (255, 255, 255)
+                    wait(0.5, () => p.use(color(255, 255, 255)));
+                    shake(2);
+                }
+                
+            } else {
+                healTimer = 0; 
+                domainText.text = `太远了！距离: ${Math.round(minDist)} (需小于 120 像素才能回血)`;
+                domainText.color = rgb(255, 100, 100); // 红色
+            }
+        }
+    });
+    
+   
+
+    
+
+    // --- 蜡烛与环境交互 ---
+    onCollide("player", "candle", (p, candle) => {
+        destroy(candle); candlesLeft--; shake(2);
+        
+        bossState = "chase";
+        chaseTimer = 30; 
+        const b = myMap.get("boss")[0];
+        if (b) b.use(color(255, 0, 0));
+
+        shake(10);
+        add([text(candlesLeft === 4 ? "它醒了！" : "仇恨刷新！", { size: 48 }), pos(width()/2, height()/2), anchor("center"), color(255, 0, 0), lifespan(1.5, { fade: 0.5 })]);
+        
+        if (candlesLeft === 0) {
+            const door = myMap.get("door")[0];
+            if (door) { door.use(color(0, 255, 0)); door.unuse("body"); }
+            add([text("大门已开！快跑！", { size: 48 }), pos(width()/2, height()/2 + 60), anchor("center"), color(0, 255, 255), lifespan(2, { fade: 0.5 })]);
+        }
+        updateUI();      
+    });
+
+    onCollide("player", "door", (p, d) => { if (candlesLeft === 0) go("win"); });
+    onCollide("boss", "ghost", (b, g) => { destroy(g); shake(1); });
+
+    // --- Boss 高级大脑 ---
+    onUpdate("boss", (b) => {
+        if (bossState === "sleep" || !playerRef) return;
+
+        if (bossState === "chase") {
+            chaseTimer -= dt(); 
+            updateUI(); 
+            if (chaseTimer <= 0) {
+                bossState = "wander"; 
+                b.use(color(255, 150, 0)); 
+                updateUI();
+            }
+        }
+
+        const bossCenter = { x: b.pos.x + 12, y: b.pos.y + 12 };
+        let targetX = 0, targetY = 0;
+
+        if (bossState === "chase") {
+            targetX = playerRef.pos.x + 12;
+            targetY = playerRef.pos.y + 12;
+        } else if (bossState === "wander") {
+            const ghosts = get("ghost");
+            if (ghosts.length > 0) {
+                let nearest = null; let minDist = Infinity;
+                ghosts.forEach(g => {
+                    let d = Math.sqrt(Math.pow(b.pos.x - g.pos.x, 2) + Math.pow(b.pos.y - g.pos.y, 2));
+                    if (d < minDist) { minDist = d; nearest = g; }
+                });
+                targetX = nearest.pos.x + 7; targetY = nearest.pos.y + 7;
+            } else return; 
+        }
+
+        const bx = Math.floor(bossCenter.x / MAP_SCALE); 
+        const by = Math.floor(bossCenter.y / MAP_SCALE);
+        const tx = Math.floor(targetX / MAP_SCALE); 
+        const ty = Math.floor(targetY / MAP_SCALE);
+
+        const nextStep = getNextMove(bx, by, tx, ty);
+        let moveTx = nextStep ? nextStep.x * MAP_SCALE + 20 : targetX;
+        let moveTy = nextStep ? nextStep.y * MAP_SCALE + 20 : targetY;
+
+        const dx = moveTx - bossCenter.x; const dy = moveTy - bossCenter.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist > 1) {
+            let currentSpeed = bossState === "wander" ? BOSS_SPEED * 0.8 : BOSS_SPEED;
+            b.move((dx / dist) * currentSpeed, (dy / dist) * currentSpeed);
+        }
+    });
+});
+
+scene("lose", () => {
+    add([text("你被抓住了......\n\n点击屏幕重新开始", { size: 32, align: "center" }), pos(center()), anchor("center"), color(255, 0, 0)]);
+    onMousePress(() => go("start")); 
+});
+
+scene("win", () => {
+    add([text("终于逃出生天！\n\n....我是谁？？\n\n点击屏幕重新开始", { size: 36, align: "center" }), pos(center()), anchor("center"), color(0, 255, 0)]);
+    onMousePress(() => go("start"));
+});
+
+go("start");
+
+</script>
+</body>
+</html>
