@@ -127,6 +127,21 @@
             color: #0f0 !important;
             border: 1px solid #333;
         }
+
+        .hidden-demo {
+    display: block;
+    padding: 10px;
+    color: transparent; /* 平时看不见文字 */
+    transition: all 0.5s;
+    text-align: center;
+    border: 1px solid transparent;
+}
+
+.hidden-demo:hover {
+    color: #ffcc00; /* 鼠标划过变成金黄色 */
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px dashed #ffcc00;
+}
     </style>
 </head>
 <body>
@@ -178,10 +193,13 @@ font-weight: 400;
 <div style="text-align:center; margin-top: 36%;">
     <h2>我要进化！I need power!</h2>
     <p>大概也许应该会升级一下（doge）说好要升级的但有点点压力一直很难打开 假期努力啦</p>
+    <p>www花了一整天，燃尽了，欸嘿嘿嘿~素材也是纯手绘，一想到如此懒惰的我也能做出一个小小小游戏来就有些高兴</p>
+    <p>唔.点一下那绿色的字就可以进（游戏引导是完全没做 哈哈哈（突然爽朗）</p>
     <input type="text" id="passInput" placeholder="输入密码...">
     <button onclick="checkPass()">进入</button>
 </div>
-        <footer style="margin-top: 50px; font-family: monospace; color: #33ff33;">
+<!-- 在 index.html 的底部加上这个 -->
+<footer style="margin-top: 50px; font-family: monospace; color: #33ff33;">
     <p>skyi@cmd:~$ <a href="./candle/main.html" style="color: #33ff33; text-decoration: none; border-bottom: 1px dashed;">./run_candle_demo.sh</a></p>
 </footer>
 <!--<script>

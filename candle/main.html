@@ -30,6 +30,13 @@ loadSound("bgm", "bgm.mp3").catch((err) => {
     console.error("音乐加载失败，但我们继续游戏:", err);
 });
 
+// 直接用浏览器原生的音频接口
+const bgm = new Audio('bgm.mp3');
+bgm.loop = true;
+bgm.volume = 0.5;
+
+
+
 const PLAYER_SPEED = 180; 
 const BOSS_SPEED = 170; 
 const MAP_SCALE = 40;     
@@ -38,7 +45,7 @@ const mapLayout = [
     "=========================",
     "=DB  #                  =",
     "===  # ########### # #  =",
-    "=*   # #         # # #  =",
+    "=    # #         # # #  =",
     "= #### # ####### # #    =",
     "=      # # *   # # # #  =",
     "= #### # # ### # # # #  =",
@@ -52,7 +59,7 @@ const mapLayout = [
     "= #### # # # #          =",
     "=    # # # # # #########=",
     "= ## # # # #            =",
-    "=  # # # # # ####### ## =",
+    "=* # # # # # ####### ## =",
     "=@ #       #          * =",
     "=========================",
 ];
@@ -79,26 +86,14 @@ function getNextMove(startX, startY, targetX, targetY) {
 }
 
 scene("start", () => {
-    add([text("鬼点烛，人吹灯\n\n- 点击屏幕开始游戏 -", { size: 28, align: "center", width: width() - 100 }), pos(center()), anchor("center"), color(255, 200, 0)]);
-    
+    add([text("鬼点烛，人吹灯\n\n- 点击屏幕开始游戏\n\n :)接下来游戏有bgm播放，可以提前调小或关闭浏览器声音", { size: 28, align: "center", width: width() - 100 }), pos(center()), anchor("center"), color(255, 200, 0)]);
+    // 在你的 scene("start") 里的点击事件里写：
+onMousePress(() => {
+    bgm.play().catch(e => console.log("原生播放失败:", e));
+    go("main");
+});
 
-    onMousePress(() => {
-        // 尝试播放音乐，如果还没加载好，报错也不要影响进游戏
-        try {
-            if (!music) {
-                music = play("bgm", {
-                    loop: true,
-                    volume: 0.5,
-                    paused: false // 确保直接开始
-                });
-            }
-        } catch (e) {
-            console.warn("音乐还没准备好，先无声潜行吧！");
-        }
-        
-        // 关键：无论音乐播没播成功，都必须切换场景
-        go("main");
-    });
+    
     
 });
 
@@ -182,7 +177,7 @@ scene("main", () => {
         let stateStr = "沉睡";
         if (bossState === "chase") stateStr = `被追杀 (${Math.ceil(chaseTimer)}s)`;
         if (bossState === "wander") stateStr = "游荡捕食中...";
-        uiText.text = `血量: ${playerHp}/${MAX_HP} | 剩余蜡烛: ${candlesLeft} | Boss: ${stateStr}`;
+        uiText.text = `血量: ${playerHp}/${MAX_HP} | 剩余未熄灭蜡烛: ${candlesLeft} | Boss: ${stateStr}`;
         if (bossState === "chase") uiText.color = rgb(255, 50, 50);
         else if (bossState === "wander") uiText.color = rgb(255, 150, 0);
         else uiText.color = rgb(255, 255, 255);
@@ -342,12 +337,61 @@ scene("main", () => {
 });
 
 scene("lose", () => {
-    add([text("你被抓住了......\n\n点击屏幕重新开始", { size: 32, align: "center" }), pos(center()), anchor("center"), color(255, 0, 0)]);
+    bgm.pause();       // 暂停播放
+bgm.currentTime = 0; // 掐断音乐
+    shake(20);         // 剧烈震动
+
+    // 1. 背景层：满屏的“错误代码”或符号线，营造压抑感
+    const bgLines = "______________________________________________________";
+    add([
+        text(`${bgLines}\n`.repeat(20), { size: 36, width: 12, opacity: 0.05 }),
+        pos(0, 0),
+        color(150, 0, 0),
+        fixed(),
+    ]);
+
+    // 2. 核心 ASCII 艺术：模拟终端打印出的“骷髅”或“系统崩溃”
+    const deathArt = `
+      你被抓住了......
+      你被抓住了.......
+      你被抓住了........
+   
+      !!! YOU ARE LOST !!!
+      
+    `;
+
+    const mainText = add([
+        text(deathArt, { 
+            size: 24, 
+            font: "monospace", // 必须用等宽字体才有命令行感觉
+            align: "center",
+            lineSpacing: 8 
+        }),
+        pos(center()),
+        anchor("center"),
+        color(255, 0, 0),
+    ]);
+
+    // 3. 动态效果：让文字闪烁，像坏掉的显示器
+    onUpdate(() => {
+        mainText.opacity = wave(0.4, 1, time() * 10); // 快速闪烁
+    });
+
+    // 4. 底部交互提示
+    add([
+        text("> Come Back? [PRESS SCREEN]", { size: 18, font: "monospace" }),
+        pos(width() / 2, height() - 50),
+        anchor("center"),
+        color(200, 200, 200),
+    ]);
+
     onMousePress(() => go("start")); 
 });
 
 scene("win", () => {
-    add([text("终于逃出生天！\n\n....我是谁？？\n\n点击屏幕重新开始", { size: 36, align: "center" }), pos(center()), anchor("center"), color(0, 255, 0)]);
+    bgm.pause();       // 暂停播放
+bgm.currentTime = 0; // 重置到开头（下次播放从头开始，可选）
+    add([text("终于逃出生天！\n\n....恭喜...？？自我？\n\n点击屏幕重新开始", { size: 36, align: "center" }), pos(center()), anchor("center"), color(0, 255, 0)]);
     onMousePress(() => go("start"));
 });
 
